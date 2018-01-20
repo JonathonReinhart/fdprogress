@@ -122,6 +122,19 @@ class FdInfo:
     def __repr__(self):
         return str(self)
 
+    @property
+    def openmode(self):
+        return self.flags & 0b11
+
+    @property
+    def readable(self):
+        return self.openmode in (os.O_RDONLY, os.O_RDWR)
+
+    @property
+    def writable(self):
+        return self.openmode in (os.O_WRONLY, os.O_RDWR)
+
+
 def get_fdinfo(pid, fd):
     info = FdInfo()
     info.target = os.readlink('/proc/{pid}/fd/{fd}'.format(pid=pid, fd=fd))
@@ -151,7 +164,13 @@ def prompt_for_fd(pid):
     fdinfos = get_all_fdinfo(pid)
     print('Open files:')
     for fd, info in sorted(fdinfos.items()):
-        print('  {}: {}'.format(fd, info.target))
+        modestr = {
+            os.O_RDONLY:    'R ',
+            os.O_WRONLY:    ' W',
+            os.O_RDWR:      'RW',
+        }[info.openmode]
+        print('  {:>3} {}: {}'.format(
+            fd, modestr, info.target))
 
     while True:
         reply = input('fd to monitor: ').strip()
