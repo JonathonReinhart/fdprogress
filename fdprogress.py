@@ -10,6 +10,14 @@ if sys.version_info.major != 3:
     sys.exit(2)
 
 class ProgressBar(object):
+    # ProgressBar originally taken from clint
+    # (https://github.com/kennethreitz/clint)
+    #
+    # Copyright (c) 2011, Kenneth Reitz <me@kennethreitz.com>
+    #
+    # Permission to use, copy, modify, and/or distribute this software for any
+    # purpose with or without fee is hereby granted, provided that the above
+    # copyright notice and this permission notice appear in all copies.
     TEMPLATE = '%s[%s%s] %i/%i (%f%%) - %s\r'
 
     # How long to wait before recalculating the ETA
