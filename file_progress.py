@@ -5,6 +5,10 @@ import time
 import shutil
 import sys
 
+if sys.version_info.major != 3:
+    print("Python 3 required")
+    sys.exit(2)
+
 class ProgressBar(object):
     TEMPLATE = '%s[%s%s] %i/%i (%f%%) - %s\r'
 
