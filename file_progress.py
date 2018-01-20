@@ -114,14 +114,37 @@ class ProgressBar(object):
         return time.strftime('%H:%M:%S', time.gmtime(seconds))
 
 class FdInfo:
-    pass
+    def __str__(self):
+        return '{}({})'.format(
+                self.__class__.__name__,
+                ', '.join('{}={!r}'.format(k,v) for k,v in self.__dict__.items()))
+
+    def __repr__(self):
+        return str(self)
 
 def get_fdinfo(pid, fd):
-    result = FdInfo()
+    info = FdInfo()
+    info.target = os.readlink('/proc/{pid}/fd/{fd}'.format(pid=pid, fd=fd))
+
+    fields = {
+        'pos':      lambda v: int(v, 10),
+        'flags':    lambda v: int(v, 8),
+        'mnt_id':   lambda v: int(v, 10),
+    }
+
     with open('/proc/{pid}/fdinfo/{fd}'.format(pid=pid, fd=fd)) as f:
         for line in f:
             name, val = (s.strip() for s in line.split(':', 1))
-            setattr(result, name, int(val))
+            t = fields.get(name, lambda v: v)
+            setattr(info, name, t(val))
+
+    return info
+
+def get_all_fdinfo(pid):
+    result = {}
+    for ent in os.listdir('/proc/{pid}/fd'.format(pid=pid)):
+        fd = int(ent)
+        result[fd] = get_fdinfo(pid, fd)
     return result
 
 def parse_args():
