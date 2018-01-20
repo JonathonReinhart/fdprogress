@@ -147,14 +147,39 @@ def get_all_fdinfo(pid):
         result[fd] = get_fdinfo(pid, fd)
     return result
 
+def prompt_for_fd(pid):
+    fdinfos = get_all_fdinfo(pid)
+    print('Open files:')
+    for fd, info in sorted(fdinfos.items()):
+        print('  {}: {}'.format(fd, info.target))
+
+    while True:
+        reply = input('fd to monitor: ').strip()
+        if not reply:
+            continue
+        try:
+            fd = int(reply)
+        except ValueError:
+            print('Invalid integer: ', reply)
+            continue
+
+        if not fd in fdinfos:
+            print('fd {} not open'.format(fd))
+            continue
+
+        return fd
+
 def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument('pid')
-    ap.add_argument('fd')
+    ap.add_argument('fd', nargs='?')
     return ap.parse_args()
 
 def main():
     args = parse_args()
+
+    if args.fd is None:
+        args.fd = prompt_for_fd(args.pid)
 
     filesize = os.stat('/proc/{pid}/fd/{fd}'.format(pid=args.pid, fd=args.fd)).st_size
 
