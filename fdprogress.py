@@ -209,6 +209,10 @@ def prompt_for_fd(pid):
         print('  {:>3} {}: {}'.format(
             fd, info.modestr, info.target))
 
+    # Only interact if stdin connected to a tty
+    if not sys.stdin.isatty():
+        raise SystemExit("Error: File descriptor required.")
+
     while True:
         reply = input('fd to monitor: ').strip()
         if not reply:
