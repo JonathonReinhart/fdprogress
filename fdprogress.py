@@ -229,6 +229,12 @@ class FdInfo:
         return self.stat.st_size
 
 
+def get_proc_name(pid):
+    path = '/proc/{pid}/comm'.format(pid=pid)
+    with open(path, 'r') as f:
+        return f.read().strip()
+
+
 def prompt_for_fd(pid):
     fdinfos = FdInfo.get_all(pid)
     print('Open files:')
@@ -275,6 +281,12 @@ def main():
 
     if info.filetype != 'reg':
         raise SystemExit("fd must refer to a regular file")
+
+    print("{comm} ({pid}) progress on {target}:".format(
+        comm = get_proc_name(args.pid),
+        pid = args.pid,
+        target = info.target,
+        ))
 
     with ProgressBar(expected_size=info.filesize, filled_char='\u2588') as bar:
         while True:
