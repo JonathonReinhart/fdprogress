@@ -5,6 +5,7 @@ import time
 import shutil
 import sys
 import math
+import stat
 
 if sys.version_info.major != 3:
     print("Python 3 required")
@@ -176,8 +177,11 @@ class FdInfo:
 
     @classmethod
     def get(cls, pid, fd):
+        fdpath = '/proc/{pid}/fd/{fd}'.format(pid=pid, fd=fd)
+
         info = cls()
-        info.target = os.readlink('/proc/{pid}/fd/{fd}'.format(pid=pid, fd=fd))
+        info.target = os.readlink(fdpath)
+        info.stat = os.stat(fdpath, follow_symlinks=True)
 
         fields = {
             'pos':      lambda v: int(v, 10),
@@ -200,6 +204,29 @@ class FdInfo:
             fd = int(ent)
             result[fd] = cls.get(pid, fd)
         return result
+
+    @property
+    def filetype(self):
+        modes = (
+            (stat.S_ISDIR,  'dir'),
+            (stat.S_ISCHR,  'chr'),
+            (stat.S_ISBLK,  'blk'),
+            (stat.S_ISREG,  'reg'),
+            (stat.S_ISFIFO, 'fifo'),
+            (stat.S_ISLNK,  'lnk'),
+            (stat.S_ISSOCK, 'sock'),
+            (stat.S_ISDOOR, 'door'),
+            (stat.S_ISPORT, 'port'),
+            (stat.S_ISWHT,  'wht'),
+        )
+        for meth, mode in modes:
+            if meth(self.stat.st_mode):
+                return mode
+        return '???'
+
+    @property
+    def filesize(self):
+        return self.stat.st_size
 
 
 def prompt_for_fd(pid):
