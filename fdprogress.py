@@ -237,10 +237,16 @@ def get_proc_name(pid):
 
 def prompt_for_fd(pid):
     fdinfos = FdInfo.get_all(pid)
-    print('Open files:')
+
+    print("Open file descriptors for PID {} (* = good candidate):".format(pid))
     for fd, info in sorted(fdinfos.items()):
-        print('  {:>3} {}: {}'.format(
-            fd, info.modestr, info.target))
+        print('{good} {fd}  {rw}:  {target}{type}'.format(
+            fd = fd,
+            rw = info.modestr,
+            target = info.target,
+            type = '' if info.filetype == 'reg' else ' ({})'.format(info.filetype),
+            good = '*' if (info.readable and info.filetype == 'reg') else ' ',
+            ))
 
     # Only interact if stdin connected to a tty
     if not sys.stdin.isatty():
