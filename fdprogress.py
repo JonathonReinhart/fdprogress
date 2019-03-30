@@ -166,34 +166,36 @@ class FdInfo:
     def writable(self):
         return self.openmode in (os.O_WRONLY, os.O_RDWR)
 
+    @classmethod
+    def get(cls, pid, fd):
+        info = cls()
+        info.target = os.readlink('/proc/{pid}/fd/{fd}'.format(pid=pid, fd=fd))
 
-def get_fdinfo(pid, fd):
-    info = FdInfo()
-    info.target = os.readlink('/proc/{pid}/fd/{fd}'.format(pid=pid, fd=fd))
+        fields = {
+            'pos':      lambda v: int(v, 10),
+            'flags':    lambda v: int(v, 8),
+            'mnt_id':   lambda v: int(v, 10),
+        }
 
-    fields = {
-        'pos':      lambda v: int(v, 10),
-        'flags':    lambda v: int(v, 8),
-        'mnt_id':   lambda v: int(v, 10),
-    }
+        with open('/proc/{pid}/fdinfo/{fd}'.format(pid=pid, fd=fd)) as f:
+            for line in f:
+                name, val = (s.strip() for s in line.split(':', 1))
+                t = fields.get(name, lambda v: v)
+                setattr(info, name, t(val))
 
-    with open('/proc/{pid}/fdinfo/{fd}'.format(pid=pid, fd=fd)) as f:
-        for line in f:
-            name, val = (s.strip() for s in line.split(':', 1))
-            t = fields.get(name, lambda v: v)
-            setattr(info, name, t(val))
+        return info
 
-    return info
+    @classmethod
+    def get_all(cls, pid):
+        result = {}
+        for ent in os.listdir('/proc/{pid}/fd'.format(pid=pid)):
+            fd = int(ent)
+            result[fd] = cls.get(pid, fd)
+        return result
 
-def get_all_fdinfo(pid):
-    result = {}
-    for ent in os.listdir('/proc/{pid}/fd'.format(pid=pid)):
-        fd = int(ent)
-        result[fd] = get_fdinfo(pid, fd)
-    return result
 
 def prompt_for_fd(pid):
-    fdinfos = get_all_fdinfo(pid)
+    fdinfos = FdInfo.get_all(pid)
     print('Open files:')
     for fd, info in sorted(fdinfos.items()):
         modestr = {
@@ -236,8 +238,8 @@ def main():
 
     with ProgressBar(expected_size=filesize, filled_char='\u2588') as bar:
         while True:
-            filepos = get_fdinfo(pid=args.pid, fd=args.fd).pos
-            bar.show(filepos)
+            info = FdInfo.get(pid=args.pid, fd=args.fd)
+            bar.show(info.pos)
             time.sleep(1)
 
 
