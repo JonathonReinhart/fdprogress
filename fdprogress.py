@@ -166,6 +166,14 @@ class FdInfo:
     def writable(self):
         return self.openmode in (os.O_WRONLY, os.O_RDWR)
 
+    @property
+    def modestr(self):
+        return {
+            os.O_RDONLY: 'r-',
+            os.O_WRONLY: '-w',
+            os.O_RDWR:   'rw',
+        }[self.openmode]
+
     @classmethod
     def get(cls, pid, fd):
         info = cls()
@@ -198,13 +206,8 @@ def prompt_for_fd(pid):
     fdinfos = FdInfo.get_all(pid)
     print('Open files:')
     for fd, info in sorted(fdinfos.items()):
-        modestr = {
-            os.O_RDONLY:    'R ',
-            os.O_WRONLY:    ' W',
-            os.O_RDWR:      'RW',
-        }[info.openmode]
         print('  {:>3} {}: {}'.format(
-            fd, modestr, info.target))
+            fd, info.modestr, info.target))
 
     while True:
         reply = input('fd to monitor: ').strip()
