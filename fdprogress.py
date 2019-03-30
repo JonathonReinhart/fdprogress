@@ -4,10 +4,34 @@ import os
 import time
 import shutil
 import sys
+import math
 
 if sys.version_info.major != 3:
     print("Python 3 required")
     sys.exit(2)
+
+def round_down(n, d=8):
+    # https://stackoverflow.com/a/43533589/119527
+    d = 10 ** d
+    return math.floor(n * d) / d
+
+def human_size(n, decimal_places=2):
+    # https://gist.github.com/JonathonReinhart/6839e16a38258c6b8f25bc9046199ccb
+    n = float(n)
+
+    suffixes = ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi']
+    for suffix in suffixes:
+        if n < 1024:
+            break
+        n /= 1024
+
+    if n.is_integer():
+        size = str(int(n))
+    else:
+        size = '{0:.{1}f}'.format(round_down(n, decimal_places), decimal_places)
+
+    return '{} {}B'.format(size, suffix)
+
 
 class ProgressBar(object):
     # ProgressBar originally taken from clint
@@ -18,7 +42,7 @@ class ProgressBar(object):
     # Permission to use, copy, modify, and/or distribute this software for any
     # purpose with or without fee is hereby granted, provided that the above
     # copyright notice and this permission notice appear in all copies.
-    TEMPLATE = '%s[%s%s] %i/%i (%f%%) - %s\r'
+    TEMPLATE = '%s[%s%s] %s/%s (%f%%) - %s\r'
 
     # How long to wait before recalculating the ETA
     ETA_INTERVAL = 1
@@ -63,7 +87,7 @@ class ProgressBar(object):
             ts = shutil.get_terminal_size((80, 40))
             test = self.TEMPLATE % (
                     self.label, '', '',
-                    self.expected_size, self.expected_size,
+                    human_size(self.expected_size), human_size(self.expected_size),
                     100.0,
                     self.format_time(0))
             width = ts.columns - len(test)
@@ -93,8 +117,8 @@ class ProgressBar(object):
                 (progress == self.expected_size)):   # And when we're done
                 self.stream.write(self.TEMPLATE % (
                     self.label, self.filled_char * x,
-                    self.empty_char * (self.width - x), progress,
-                    self.expected_size, 
+                    self.empty_char * (self.width - x),
+                    human_size(progress), human_size(self.expected_size),
                     self.percent(progress),
                     self.etadisp))
                 self.stream.flush()
