@@ -256,21 +256,27 @@ def prompt_for_fd(pid):
 
         return fd
 
+
 def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument('pid', type=int)
     ap.add_argument('fd', type=int, nargs='?')
     return ap.parse_args()
 
+
 def main():
     args = parse_args()
 
+    # If fd is not given, list open fds
     if args.fd is None:
         args.fd = prompt_for_fd(args.pid)
 
-    filesize = os.stat('/proc/{pid}/fd/{fd}'.format(pid=args.pid, fd=args.fd)).st_size
+    info = FdInfo.get(args.pid, args.fd)
 
-    with ProgressBar(expected_size=filesize, filled_char='\u2588') as bar:
+    if info.filetype != 'reg':
+        raise SystemExit("fd must refer to a regular file")
+
+    with ProgressBar(expected_size=info.filesize, filled_char='\u2588') as bar:
         while True:
             info = FdInfo.get(pid=args.pid, fd=args.fd)
             bar.show(info.pos)
