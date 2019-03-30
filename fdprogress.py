@@ -227,8 +227,8 @@ def prompt_for_fd(pid):
 
 def parse_args():
     ap = argparse.ArgumentParser()
-    ap.add_argument('pid')
-    ap.add_argument('fd', nargs='?')
+    ap.add_argument('pid', type=int)
+    ap.add_argument('fd', type=int, nargs='?')
     return ap.parse_args()
 
 def main():
