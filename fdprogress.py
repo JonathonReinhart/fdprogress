@@ -99,6 +99,7 @@ class ProgressBar(object):
         self.etadelta =      time.time()
         self.etadisp =       self.format_time(self.eta)
         self.last_progress = 0
+        self.last_written = 0
 
         # Auto-calculate width
         if width is None:
@@ -133,12 +134,18 @@ class ProgressBar(object):
         if not self.hide:
             if ((progress % self.every) == 0 or      # True every "every" updates
                 (progress == self.expected_size)):   # And when we're done
-                self.stream.write(self.TEMPLATE % (
+
+                # Clear out the last update (in case it shrinks)
+                overwrite = (' ' * self.last_written) + '\r'
+                self.stream.write(overwrite)
+
+                to_write = self.TEMPLATE % (
                     self.label, self.filled_char * x,
                     self.empty_char * (self.width - x),
                     human_size(progress), human_size(self.expected_size),
                     self.percent(progress),
-                    self.etadisp))
+                    self.etadisp)
+                self.last_written = self.stream.write(to_write) - 1 # exclude \r
                 self.stream.flush()
 
     def done(self):
