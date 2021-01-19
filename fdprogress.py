@@ -6,6 +6,8 @@ import shutil
 import sys
 import math
 import stat
+import fcntl
+import struct
 
 if sys.version_info.major != 3:
     print("Python 3 required")
@@ -32,6 +34,21 @@ def human_size(n, decimal_places=2):
         size = '{0:.{1}f}'.format(round_down(n, decimal_places), decimal_places)
 
     return '{} {}B'.format(size, suffix)
+
+BLKGETSIZE64 = 0x80081272
+u64 = struct.Struct('<Q')
+
+def get_blockdev_size(path):
+    """Get the size of a block device, in bytes"""
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        buf = bytearray(u64.size)
+        rc = fcntl.ioctl(fd, BLKGETSIZE64, buf)
+        if rc != 0:
+            raise OSError("BLKGETSIZE64 failed")
+        return u64.unpack(buf)[0]
+    finally:
+        os.close(fd)
 
 
 class ProgressBar(object):
@@ -235,6 +252,8 @@ def get_proc_name(pid):
         return f.read().strip()
 
 
+SUPPORTED_FILETYPES = ('reg', 'blk')
+
 def prompt_for_fd(pid):
     fdinfos = FdInfo.get_all(pid)
 
@@ -245,7 +264,7 @@ def prompt_for_fd(pid):
             rw = info.modestr,
             target = info.target,
             type = '' if info.filetype == 'reg' else ' ({})'.format(info.filetype),
-            good = '*' if (info.readable and info.filetype == 'reg') else ' ',
+            good = '*' if info.readable and info.filetype in SUPPORTED_FILETYPES else ' ',
             ))
 
     # Only interact if stdin connected to a tty
@@ -262,8 +281,12 @@ def prompt_for_fd(pid):
             print('Invalid integer: ', reply)
             continue
 
-        if not fd in fdinfos:
+        info = fdinfos.get(fd)
+        if not info:
             print('fd {} not open'.format(fd))
+            continue
+        if not info.filetype in SUPPORTED_FILETYPES:
+            print('fd {} not valid type ({})'.format(fd, info.filetype))
             continue
 
         return fd
@@ -285,8 +308,13 @@ def main():
 
     info = FdInfo.get(args.pid, args.fd)
 
-    if info.filetype != 'reg':
-        raise SystemExit("fd must refer to a regular file")
+    if info.filetype == 'reg':
+        expected_size = info.filesize
+    elif info.filetype == 'blk':
+        expected_size = get_blockdev_size(info.target)
+    else:
+        raise SystemExit("fd must refer to a regular file or block device")
+
 
     print("{comm} ({pid}) progress on {target}:".format(
         comm = get_proc_name(args.pid),
@@ -294,7 +322,7 @@ def main():
         target = info.target,
         ))
 
-    with ProgressBar(expected_size=info.filesize, filled_char='\u2588') as bar:
+    with ProgressBar(expected_size=expected_size, filled_char='\u2588') as bar:
         while True:
             info = FdInfo.get(pid=args.pid, fd=args.fd)
             bar.show(info.pos)
